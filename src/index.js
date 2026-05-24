@@ -19,7 +19,7 @@ bot.command('hello', (ctx) => {
 
 bot.launch({
   webhook: {
-    domain: '',
+    domain: 'https://tg-bot-dy5y.onrender.com',
     port: PORT,
   },
 });
