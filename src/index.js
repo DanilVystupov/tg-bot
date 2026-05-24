@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const TOKEN = process.env.BOT_TOKEN;
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
+const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN;
 
 const bot = new Telegraf(TOKEN);
 
@@ -17,22 +18,30 @@ bot.command('hello', (ctx) => {
   ctx.reply('Hello!🚀');
 });
 
-bot.launch({
-  webhook: {
-    domain: 'https://tg-bot-dy5y.onrender.com',
-    port: PORT,
-  },
-});
-
 const app = express();
 
-app.get('/', (req, res) => {
-  res.send('Bot is running 🚀');
+app.use(express.json());
+
+app.post('/webhook', (req, res) => {
+  bot.handleUpdate(req.body, res);
 });
 
-app.listen(PORT, () => {
+app.get('/', (req, res) => res.send('Bot is running'));
+
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
+
+  const webhookUrl = `${WEBHOOK_DOMAIN}/webhook`;
+  await bot.telegram.setWebhook(webhookUrl);
+  console.log(`Webhook set to ${webhookUrl}`);
 });
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once('SIGINT', () => {
+  bot.stop('SIGINT');
+  process.exit();
+});
+
+process.once('SIGTERM', () => {
+  bot.stop('SIGTERM');
+  process.exit();
+});
