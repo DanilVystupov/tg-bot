@@ -1,4 +1,7 @@
-import { getRandomBibizyanGif, getRandomBibizyanText } from '../db/bibizyan.js';
+import {
+  getRandomBibizyanGif,
+  getRandomBibizyanTextFromAI,
+} from '../db/bibizyan.js';
 
 export const bibizyanCommand = (bot) => {
   let isLoading = false;
@@ -8,32 +11,20 @@ export const bibizyanCommand = (bot) => {
       return;
     }
 
+    ctx.reply('Определяю кто ты сегодня...');
+
     try {
       isLoading = true;
 
-      let bibizyanText;
       let bibizyanGif;
+      let bibizyanText;
 
-      const requests = [
-        await getRandomBibizyanText(),
-        await getRandomBibizyanGif(),
-      ];
+      const responseBibizyanGif = await getRandomBibizyanGif();
+      bibizyanGif = responseBibizyanGif[0].media_formats.tinygif.url;
 
-      const result = await Promise.allSettled(requests);
+      bibizyanText = await getRandomBibizyanTextFromAI(bibizyanGif);
 
-      if (result[0].status === 'fulfilled') {
-        bibizyanText = result[0].value;
-      } else {
-        throw new Error();
-      }
-
-      if (result[1].status === 'fulfilled') {
-        bibizyanGif = result[1].value;
-      } else {
-        throw new Error();
-      }
-
-      ctx.replyWithAnimation(bibizyanGif[0].media_formats.tinygif.url, {
+      ctx.replyWithAnimation(bibizyanGif, {
         caption: bibizyanText,
       });
     } catch (error) {
