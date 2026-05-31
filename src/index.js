@@ -1,12 +1,14 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { bot } from './bot.js';
+import { getUserByUserName } from './db/users.js';
 
 dotenv.config();
 
 const PORT = process.env.PORT;
 const WEBHOOK_DOMAIN = process.env.WEBHOOK_DOMAIN;
 const NODE_ENV = process.env.NODE_ENV;
+const TEST_USER_NAME = process.env.TEST_USER_NAME;
 
 const app = express();
 
@@ -29,6 +31,32 @@ if (NODE_ENV === 'production') {
 } else {
   bot.launch();
 }
+
+app.get('/daily', async (req, res) => {
+  try {
+    const user = await getUserByUserName(TEST_USER_NAME);
+
+    if (!user) {
+      throw new Error('Пользователь не найден');
+    }
+
+    try {
+      await bot.telegram.sendMessage(user.telegram_id, 'Тестовая рассылка');
+
+      // Защита от флуд лимита
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (error) {
+      if (error.response?.error_code === 403) {
+        console.log('Пользователь заблокировал бота');
+      }
+    }
+
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Произошла ошибка с ежедневной рассылкой: ', error.message);
+    res.status(500).send('ERROR');
+  }
+});
 
 process.once('SIGINT', () => {
   bot.stop('SIGINT');

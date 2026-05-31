@@ -30,3 +30,21 @@ export async function addUser(user) {
     throw error;
   }
 }
+
+export async function getUserByUserName(username) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('username', username)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      'Ошибка при получении пользователя по username: ',
+      error.message
+    );
+    throw error;
+  }
+
+  return data;
+}
