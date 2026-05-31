@@ -1,7 +1,8 @@
 import {
   getRandomBibizyanGif,
-  getRandomBibizyanTextFromAI,
+  generateBibizyanTextFromAI,
 } from '../db/bibizyan.js';
+import { MAX_GIF_SIZE } from '../constants/bibizyan.js';
 
 export const bibizyanCommand = (bot) => {
   let isLoading = false;
@@ -16,19 +17,26 @@ export const bibizyanCommand = (bot) => {
     try {
       isLoading = true;
 
-      let bibizyanGif;
-      let bibizyanText;
-
       const responseBibizyanGif = await getRandomBibizyanGif();
-      bibizyanGif = responseBibizyanGif[0].media_formats.tinygif.url;
 
-      bibizyanText = await getRandomBibizyanTextFromAI(bibizyanGif);
+      const contentLength = responseBibizyanGif[0].media_formats.tinygif.size;
+      if (contentLength && contentLength > MAX_GIF_SIZE) {
+        throw new Error(`GIF слишком большой: ${contentLength} байт`);
+      }
+
+      const bibizyanGif = responseBibizyanGif[0].media_formats.tinygif.url;
+      const bibizyanContentDescription =
+        responseBibizyanGif[0].content_description;
+      const bibizyanText = await generateBibizyanTextFromAI(
+        bibizyanGif,
+        bibizyanContentDescription
+      );
 
       ctx.replyWithAnimation(bibizyanGif, {
         caption: bibizyanText,
       });
     } catch (error) {
-      console.error('Произошла ошибка при /bibizyan', error.message);
+      console.error('Произошла ошибка при /bibizyan: ', error.message);
       ctx.reply('Произошла ошибка. Попробуйте еще раз /bibizyan');
     } finally {
       isLoading = false;

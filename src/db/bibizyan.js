@@ -1,6 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import { supabase } from './index.js';
+import { validBibizyanText } from '../utils/validBibizyanText.js';
 
 dotenv.config();
 
@@ -26,71 +27,104 @@ export async function getRandomBibizyanGif() {
   }
 }
 
-export async function getRandomBibizyanTextFromAI(gifUrl) {
-  const strictPrompt = `
-      ОТВЕТЬ ОДНИМ СООБЩЕНИЕМ БЕЗ РАССУЖДЕНИЙ.
-      Придумай смешное описание меменой/смешной гифки по url: ${gifUrl}.
-
-      В следющем формате:
+export async function generateBibizyanTextFromAI(gifUrl, gifDescription) {
+  try {
+    const prompt = `
+      Ты — автор абсурдных интернет-мемов с черным юмором и самоиронией.
+      
+      Задача: придумать СМЕШНОЕ, неожиданное описание гифки.
+      Url гифки: ${gifUrl}
+      Короткое описаине гифки: ${gifDescription} 
+      
+      ВАЖНО:
+      - Юмор должен быть НЕ очевидный, с поворотом или абсурдом
+      - Избегай банальных шуток и повторения примеров
+      - Лучше странно, чем скучно
+      
+      ФОРМАТ СТРОГО:
       Сегодня ты: **Бибизян-тип** — описание эмодзи
-        Где: 
-        - тип=1 русское слово
-        - описание=6-8 русских слов
-        - 1 эмодзи в конце
-
-      Примеры:
-      "Сегодня ты: **Бибизян-соня** — уже пятый раз пересматриваешь эту гифку 💤",
-      "Сегодня ты: **Бубнезный бибизян** — несешь чушь, но звучит эпично 🎤", 
+      
+      ПРАВИЛА:
+      - тип = 1 короткое слово
+      - описание = 5–9 слов
+      - в конце 1–2 эмодзи
+      - максимум 90 символов
+      
+      СТИЛЬ ЮМОРА:
+      - абсурд ("план был, но он испугался")
+      - самоирония ("делаю вид, что понимаю жизнь")
+      - гипербола ("устал так, что стал мебелью")
+      - неожиданный поворот
+      
+      ПЛОХО:
+      "устал после работы 😴" (слишком просто)
+      
+      ХОРОШО:
       "Сегодня ты: **Бибизян-зумер** — работаешь 5 минут, устал на 5 часов 📱",
-      "Сегодня ты: **Бибизян-ностальгия** — 'раньше бананы были вкуснее...' 🍌🕰️",  
-      "Сегодня ты: **Бибизян-сарказм** — 'о, отлично... просто замечательно' 👏",  
-      "Сегодня ты: **Бибизян-детокс** — 'сегодня без кринжа... (шутка)' 🧘",  
-      "Сегодня ты: **Бибизян-хаос** — 'у меня есть план... НЕТ' 🎭", 
-
-      ПРИМЕРЫ НЕ ИСПОЛЬЗУЙ В ФИНАЛЬНОМ ОТВЕТЕ.
-
-      Темы могут быть абсолютно разными:
-        - Состояния усталости
-        - Работа/учеба
-        - Эмоции/настроение
-        - Ситуативные
-        - Абсурдные
-        - Интернет/мемы
-        - Бытовуха
-      ОТВЕТЬ ОДНИМ СООБЩЕНИЕМ БЕЗ РАССУЖДЕНИЙ.
-      ОТВЕТ МАКСИМУМ 80 СИМВОЛОВ!
+      "Сегодня ты: **Бибизян-доставка** — ждешь пиццу 2 часа, но забыл заказать 🍕⏳",
+      "Сегодня ты: **Бибизян-инфлюенсер** — продал душу за 5 лайков (не окупилось) 😇❤️",
+      
+      НЕ ИСПОЛЬЗУЙ шаблоны из примеров.
+      
+      Ответ только одной строкой.
     `;
 
-  let response = await axios.post(
-    'https://openrouter.ai/api/v1/chat/completions',
-    {
-      model: 'openrouter/free',
-      messages: [
-        {
-          role: 'user',
-          content: strictPrompt,
-        },
-      ],
-      reasoning: { enabled: true },
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model: 'openrouter/free',
+        messages: [
+          {
+            role: 'user',
+            content: prompt,
+          },
+        ],
+        reasoning: { enabled: true },
       },
-    }
-  );
+      {
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  const result = await response.data;
-  return result.choices[0].message.content;
+    const result = response.data.choices[0].message.content
+      .replace(/<think>.*<\/think>/gs, '')
+      .replace(/<assistant>.*<\/assistant>/gs, '')
+      .replace(/^[^а-яА-Я]*/, '')
+      .trim();
+
+    const isValid = validBibizyanText(result);
+
+    if (!isValid) {
+      throw new Error(`Формат нарушен: ${result}`);
+    }
+
+    return result;
+  } catch (error) {
+    console.error(
+      'Ошибка при генерации описания для гифки с бибизяном:',
+      error.message
+    );
+    return await getRandomBibizyanTextFromDB();
+  }
 }
 
-export async function getRandomBibizyanText() {
-  const { data } = await supabase
+async function getRandomBibizyanTextFromDB() {
+  const { data, error } = await supabase
     .from('random_bibizyan')
     .select('text')
     .limit(1)
     .single();
+
+  if (error) {
+    console.error(
+      'Ошибка при получении описания из БД для гифки с бибизяном: ',
+      error.message
+    );
+    throw error;
+  }
 
   return data.text;
 }
