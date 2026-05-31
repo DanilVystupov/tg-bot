@@ -12,7 +12,7 @@ export const bibizyanCommand = (bot) => {
       return;
     }
 
-    ctx.reply('Определяю кто ты сегодня...');
+    const msgInfo = await ctx.reply('🔮 Определяю кто ты сегодня...');
 
     try {
       isLoading = true;
@@ -37,12 +37,19 @@ export const bibizyanCommand = (bot) => {
         throw new Error('Отсутствует описание для GIF');
       }
 
-      ctx.replyWithAnimation(bibizyanGif, {
+      await ctx.deleteMessage(msgInfo.message_id);
+
+      await ctx.replyWithAnimation(bibizyanGif, {
         caption: bibizyanText,
       });
     } catch (error) {
       console.error('Произошла ошибка при /bibizyan: ', error.message);
-      ctx.reply('Произошла ошибка. Попробуйте еще раз /bibizyan');
+      ctx.telegram.editMessageText(
+        msgInfo.chat.id,
+        msgInfo.message_id,
+        msgInfo.message_id,
+        'Произошла ошибка. Попробуйте еще раз /bibizyan'
+      );
     } finally {
       isLoading = false;
     }
