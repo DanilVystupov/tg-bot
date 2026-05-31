@@ -27,10 +27,15 @@ export const bibizyanCommand = (bot) => {
       const bibizyanGif = responseBibizyanGif[0].media_formats.tinygif.url;
       const bibizyanContentDescription =
         responseBibizyanGif[0].content_description;
+
       const bibizyanText = await generateBibizyanTextFromAI(
         bibizyanGif,
         bibizyanContentDescription
       );
+
+      if (!bibizyanText) {
+        throw new Error('Отсутствует описание для GIF');
+      }
 
       ctx.replyWithAnimation(bibizyanGif, {
         caption: bibizyanText,
